@@ -5,3 +5,6 @@
 .DS_Store
 workflow/data
 pipeline
+*.bib
+*.docx
+*.pdf

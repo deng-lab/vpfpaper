@@ -51,16 +51,18 @@ path_source <- projthis::proj_path_source(params$name)
 ```{r}
 fp_metadata <- here(prj_path, "data/metadata.xlsx")
 fp_vir_taxa <- here(dpath, "taxonomy.tsv")
-fp_vir_counts <- here(dpath, "abundance_contigs_count.tsv.gz")
-fp_vir_trmean <- here(dpath, "abundance_contigs_trimmed_mean.tsv.gz")
-fp_vir_tpm <- here(dpath, "abundance_contigs_tpm.tsv.gz")
-fp_vir_covfrac <- here(dpath, "abundance_contigs_covered_fraction.tsv.gz")
-fp_vir_tpm <- here(dpath, "abundance_contigs_tpm.tsv.gz")
+# fp_vir_counts <- here(dpath, "abundance_contigs_count.tsv.gz")
+# fp_vir_trmean <- here(dpath, "abundance_contigs_trimmed_mean.tsv.gz")
+# fp_vir_covfrac <- here(dpath, "abundance_contigs_covered_fraction.tsv.gz")
+# fp_vir_tpm <- here(dpath, "abundance_contigs_tpm.tsv.gz")
+fp_vir_counts <- here(dpath, "sid90/abundance_contigs_count.tsv.gz")
+fp_vir_trmean <- here(dpath, "sid90/abundance_contigs_trimmed_mean.tsv.gz")
+fp_vir_covfrac <- here(dpath, "sid90/abundance_contigs_covered_fraction.tsv.gz")
 fp_checkv <- here(dpath, "quality_summary.tsv")
 fp_virsorter2 <- here(dpath, "final-viral-score.tsv")
 fp_vcontact2 <- here(dpath, "genome_by_genome_overview.csv")
 fp_lifestyle <- here(dpath, "scaffolds.fna.bacphlip")
-fp_virhost <- here(dpath, "Host_prediction_to_genome_m90.csv")
+fp_virhost <- here(dpath, "Host_prediction_to_genus_m90.csv")
 fp_dram_stats <- here(dpath, "vMAG_stats.tsv")
 fp_dram_anno <- here(dpath, "annotations.tsv")
 fp_vgene_abund <- here(dpath, "abundance_orfs.tsv")
@@ -76,6 +78,10 @@ df_vtaxa <- read_vtaxonomy(fp_vir_taxa)  # will be replaced or removed
 df_vrcyc <- read_lifestyle(fp_lifestyle)
 # anno_virhost <- fread(fp_virhost)
 df_vgene_abund <- fread(fp_vgene_abund)
+df_host <- fread(fp_virhost) %>% 
+  setnames(colnames(.), c("contig_id", "aai", "lineage", "score", "methods")) %>% 
+  dplyr::select(c(contig_id, lineage)) %>% 
+  separate(lineage, sep = ";", into = c("domain", "phylum", "class", "order", "family", "genus"))
 
 df_dramstats <- fread(fp_dram_stats) %>% 
   column_to_rownames("V1") %>% 
@@ -115,7 +121,6 @@ read_abundance2 <- function(fp, anno_vir) {
 df_counts <- read_abundance(fp_vir_counts, anno_viral, smeta$sample_id)
 df_trmean <- read_abundance(fp_vir_trmean, anno_viral, smeta$sample_id)
 df_covfrac <- read_abundance(fp_vir_covfrac, anno_viral, smeta$sample_id)
-df_tpm <- read_abundance(fp_vir_tpm, anno_viral, smeta$sample_id)
 df_abundance <- create_viral_abundance(df_trmean, df_covfrac, covfrac_threshold=0.2) %>% 
   t()
 df_abundance_rel <- df_abundance / rowSums(df_abundance)
@@ -125,19 +130,31 @@ df_abundance_mclr <- SPRING::mclr(df_abundance_rel) %>% t() %>%
 
 # -------------
 df_counts_cov <- create_viral_abundance(df_counts, df_covfrac, covfrac_threshold=0.7)
+df_trmean_cov <- create_viral_abundance(df_trmean, df_covfrac, covfrac_threshold=0.7)
 ctg_len <- data.frame(Contig=rownames(df_counts_cov)) %>% 
   left_join(anno_viral) %>% 
   dplyr::select(c(Contig, checkv_contig_length)) %>% 
   pull(checkv_contig_length)
 
 counts2rpkm <- function(df_counts, seq_len) {
-  df_rpkm <- sweep(df_counts * 10^9 / 2, 1, seq_len, FUN = '/')
+  # For each sample (column)
+  # rpkm = num_reads_in_region / (total_reads / 10^6) / (region_len / 10^3)
+  #      = num_reads_in_region * 10^9 / total_reads / region_len
+  libsize = colSums(df_counts)   #  lib_size: total_reads
+  counts_norm_by_libsize = sweep(df_counts * 10^6, 2, libsize, FUN = '/')
+  df_rpkm <- sweep(counts_norm_by_libsize * 10^3, 1, seq_len, FUN = '/')
   return(df_rpkm)
 }
 
 counts2tpm <- function(df_counts, seq_len, ceiling=FALSE) {
-  df_rpkm <- sweep(df_counts * 10^9 / 2, 1, seq_len, FUN = '/')
-  df_tpm <- sweep(df_rpkm, 2, colSums(df_rpkm), FUN = '/') * 10^6
+  # For each sample (column)
+  # norm_by_len = num_reads_in_region / region_len
+  # libsize = sum(norm_by_len)
+  # tpm = norm_by_len / (libsize / 10^6)
+  #     = norm_by_len * 10^6 / libsize
+  norm_by_len = sweep(df_counts, 1, seq_len, FUN = '/')
+  libsize = colSums(norm_by_len)
+  df_tpm <- sweep(norm_by_len, 2, libsize, FUN = '/') * 10^6
   if (ceiling) {
     df_tpm <- ceiling(df_tpm)
   }
@@ -146,6 +163,8 @@ counts2tpm <- function(df_counts, seq_len, ceiling=FALSE) {
 
 mx_rpkm <- counts2rpkm(df_counts_cov, ctg_len)
 mx_tpm <- counts2tpm(df_counts_cov, ctg_len, TRUE)
+mx_tmm <- sweep(df_trmean_cov, 2, colSums(df_trmean_cov), FUN = '/') * 10^6
+mx_tmm <- ceiling(mx_tmm)
 ```
 
 
@@ -169,31 +188,35 @@ tbl_counts <- abundance_matrix(df_counts)
 tbl_trmean <- abundance_matrix(df_trmean)
 tbl_covfrac <- abundance_matrix(df_covfrac)
 
-tse <- TreeSummarizedExperiment(assays = SimpleList(tpm = as.matrix(mx_tpm)),
+tse <- TreeSummarizedExperiment(assays = SimpleList(counts = as.matrix(ceiling(tbl_counts))),
                                 colData = smeta,
                                 rowData = feature_anno)
+
+assay(tse, "rpkm") <- edgeR::rpkm(assay(tse, "counts"), ctg_len)
+assay(tse, "tpm") <- counts2tpm(assay(tse, "counts"), ctg_len, TRUE)
 
 tse_vc <- mia::mergeRows(tse, rowData(tse)$vConTACT_VC2)
 tse_condition <- mia::mergeCols(tse_vc, colData(tse)$condition)
 ```
 
-
 ```{r}
 tse1 <- tse_vc
-tse1 <- transformCounts(tse1, method = "relabundance", abund_values = "tpm")
+tse1 <- transformCounts(tse1, method = "relabundance", abund_values = "counts")
+tse1 <- transformCounts(tse1, method = "log10", abund_values = "relabundance", pseudocount = 1)
+
 
 idx_richness <- c("chao1", "ace")
-tse1 <- estimateRichness(tse1, abund_values = "tpm",
+tse1 <- estimateRichness(tse1, abund_values = "counts",
                         index = idx_richness,
                         name = paste0("richness_", idx_richness))
 
 idx_diversity <- c("coverage", "fisher", "shannon")
-tse1 <- estimateDiversity(tse1, abund_values = "tpm",
+tse1 <- estimateDiversity(tse1, abund_values = "counts",
                         index = idx_diversity,
                         name = paste0("diversity_", idx_diversity))
 
 idx_evenness <- c("pielou", "camargo", "simpson_evenness", "evar", "bulla")
-tse1 <- estimateEvenness(tse1, abund_values = "tpm",
+tse1 <- estimateEvenness(tse1, abund_values = "counts",
                         index = idx_evenness,
                         name = paste0("evenness_", idx_evenness))
 plotColData(tse1, "diversity_shannon", "condition")
@@ -223,17 +246,18 @@ plot_beta_diversity <- function(tse_obj, name, NMDS=FALSE, scale = F, ...) {
   return(p)
 }
 
-p1 <- plot_beta_diversity(tse1, name = "PCoA", method = "bray", exprs_values = "relabundance", ntop = nrow(tse))
-p2 <- plot_beta_diversity(tse1, name = "MDS_euclidean", method = "euclidean", exprs_values = "relabundance", ntop = nrow(tse))
-p3 <- plot_beta_diversity(tse1, name = "NMDS_BC", method = "bray", exprs_values = "relabundance", ntop = nrow(tse), NMDS = TRUE)
-p4 <- plot_beta_diversity(tse1, name = "NMDS_euclidean", method = "euclidean", exprs_values = "relabundance", ntop = nrow(tse1), NMDS = TRUE)
+p1 <- plot_beta_diversity(tse1, name = "PCoA", method = "bray", exprs_values = "log10", ntop = nrow(tse))
+p2 <- plot_beta_diversity(tse1, name = "MDS_euclidean", method = "euclidean", exprs_values = "log10", ntop = nrow(tse))
+p3 <- plot_beta_diversity(tse1, name = "NMDS_BC", method = "bray", exprs_values = "log10", ntop = nrow(tse), NMDS = TRUE)
+p4 <- plot_beta_diversity(tse1, name = "NMDS_euclidean", method = "euclidean", exprs_values = "log10", ntop = nrow(tse1), NMDS = TRUE)
 p1 + p2 + p3 + p4 + plot_layout(guides = "collect")
+p2 + p4
 ```
 
-```{r composition, fig.height=6, fig.width=12}
+```{r composition, fig.height=6, fig.width=6}
 rank_sel <- "Family"
-tse_tmp <- tse_hd
-tse_tmp <- relAbundanceCounts(tse_tmp, abund_values = "tpm")
+tse_tmp <- tse_condition
+tse_tmp <- relAbundanceCounts(tse_tmp, abund_values = "counts")
 tse_rank <- agglomerateByRank(tse_tmp, rank = rank_sel, onRankOnly=T, na.rm=F)
 # top_taxa <- getTopTaxa(tse_rank,top = 5, abund_values = "relabundance")
 # top_taxa <- top_taxa[str_detect(top_taxa, "NA|___", negate = T)]
@@ -244,7 +268,7 @@ rowData(tse_rank)[[rank_sel]] <- as.character(taxa_renamed)
 plotAbundance(tse_rank, abund_values="relabundance", rank = rank_sel,
               order_rank_by="abund", add_x_text=T) +
   labs(x = "Samples", y = "Relative abundance")
-ggsave("fig1_family_abundance.pdf")
+ggsave("fig1_family_abundance.pdf", width = 4, height = 5)
 
 colnames(tbl_counts)
 rownames(rowData(tse_rank))
@@ -280,7 +304,7 @@ fig2_2 <- plot_diversity(tse1, "diversity_shannon", smeta)
 fig2_3 <- plot_diversity(tse1, "evenness_pielou", smeta)
 
 fig2 <- fig2_1 | fig2_2 | fig2_3
-ggsave("fig2_diversity.pdf", plot = fig2, width = 14)
+ggsave("fig2_diversity.pdf", plot = fig2, width = 9, height = 4)
 ```
 ```{r AMG heatmap todo, fig.width=40}
 df_vgene_abund <- fread(fp_vgene_abund)
@@ -317,16 +341,40 @@ df4heatmap <- df_vgene_rel %>%
   dplyr::filter(rowSums(.)>0.1) %>% 
   as.matrix()
 
-pheatmap(df4heatmap, scale = "column", width = 10, fontsize = 9, 
+df4heatmap <- df4heatmap %>% 
+  t() %>% 
+  as.data.frame() %>% 
+  rownames_to_column("condition") %>% 
+  mutate(condition = ifelse(str_detect(condition, "H"), "Health", "UC")) %>%
+  group_by(condition) %>% 
+  summarise(across(everything(), sum)) %>% 
+  column_to_rownames("condition") %>% 
+  t()
+
+pheatmap(df4heatmap, scale = "row", width = 10, 
          cluster_rows = T,
          cluster_cols = F,
+         fontsize = 14,
          filename = "fig3_AMG_heatmap.pdf")
 ```
 
 ```{r sankey, fig.height=8, fig.width=16}
+host_relab <- assay(tse_tmp, "relabundance") %>% 
+  as.data.frame() %>% 
+  rownames_to_column("contig_id") %>% 
+  inner_join(df_host, by = "contig_id") %>% 
+  dplyr::select(c(class, Health, UC)) %>% 
+  group_by(class) %>% 
+  summarise(across(everything(), sum)) %>% 
+  dplyr::filter(str_detect(class, "__$", negate = T)) %>% 
+  mutate(sumrel = Health + UC) %>% 
+  dplyr::filter(sumrel > 0.0001) %>% 
+  column_to_rownames("class") 
+
 # Libraries
 dft <- assay(tse_rank, "relabundance") %>% 
-  data.frame() %>% 
+  data.frame()
+dft <- host_relab %>% 
   # t() %>% 
   # data.frame() %>% 
   rownames_to_column("source") %>% 
