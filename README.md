@@ -1,17 +1,17 @@
-
-# viroprofiler_paper
+# vpfpaper
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of viroprofiler_paper is to ...
+The goal of vpfpaper is to ...
 
 ## Installation
 
-You can install the development version of viroprofiler_paper like so:
+You can install the development version of vpfpaper from [GitHub](https://github.com/rujinlong/vpfpaper) with:
 
 ``` r
-# FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
+# install.packages("devtools")
+devtools::install_github("rujinlong/vpfpaper")
 ```
 
 ## Example
@@ -19,7 +19,7 @@ You can install the development version of viroprofiler_paper like so:
 This is a basic example which shows you how to solve a common problem:
 
 ``` r
-library(viroprofiler_paper)
+library(vpfpaper)
 ## basic example code
 ```
 

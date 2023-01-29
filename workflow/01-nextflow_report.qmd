@@ -1,0 +1,63 @@
+---
+title: "01-nextflow_report"
+title-block-banner: true
+author:
+  - name: Jinlong Ru
+    orcid: 0000-0002-6757-6018
+    email: jinlong.ru@gmail.com
+    affiliations:
+      - name: Institute of Virology, Helmholtz Centre Munich – German Research Center for Environmental Health, 85764 Neuherberg, Germany
+      - neme: Chair of Prevention of Microbial Diseases, School of Life Sciences Weihenstephan, Technical University of Munich, 85354 Freising, Germany
+date: 2023-01-18
+format: gfm
+bibliography: refs.bib
+params:
+  name: "01-nextflow_report"
+---
+
+Updated: `r format(Sys.time(), '%Y-%m-%d %H:%M:%S', tz = 'CET')` CET.
+
+```{r setup, message=FALSE, include=F}
+# uuid::UUIDgenerate()
+here::i_am(paste0(params$name, ".qmd"), uuid = "e6309f2c-c452-4318-bf99-6fb9130a5afd")
+projthis::proj_create_dir_target(params$name, clean = F)
+path_target <- projthis::proj_path_target(params$name)
+path_source <- projthis::proj_path_source(params$name)
+```
+
+## Tasks
+
+```{r}
+library(conflicted)
+library(here)
+library(tidyverse)
+library(data.table)
+```
+
+```{r cpu usage, fig.width=10, fig.height=4}
+fin <- path_source("00-rawdata", "execution_trace.txt")
+df <- fread(fin) %>% 
+  dplyr::mutate(run_time = str_replace_all(duration, "m", "min")) %>% 
+  dplyr::mutate(run_time = lubridate::as.duration(run_time)) %>% 
+  # converte realtime to hours
+  dplyr::mutate(run_time = run_time / 3600) %>%
+  dplyr::mutate(task_name = str_replace_all(name, " \\(.*", ""))
+
+
+# Histogram plot of realtime of task_name
+df %>% 
+  ggplot(aes(x = task_name, y = run_time)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8)) +
+  labs(x = "Task name", y = "Run time (hours)", title = "Run time of task_name")
+```
+
+
+
+## Files written
+
+These files have been written to the target directory, ```r paste0("data/", params$name)```:
+
+```{r list-files-target}
+projthis::proj_dir_info(path_target())
+```

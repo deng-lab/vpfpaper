@@ -1,0 +1,85 @@
+---
+title: "01_benchmark-viral-detection"
+title-block-banner: true
+author:
+  - name: Jinlong Ru
+    orcid: 0000-0002-6757-6018
+    email: jinlong.ru@gmail.com
+    affiliations:
+      - name: Institute of Virology, Helmholtz Centre Munich – German Research Center for Environmental Health, 85764 Neuherberg, Germany
+      - neme: Chair of Prevention of Microbial Diseases, School of Life Sciences Weihenstephan, Technical University of Munich, 85354 Freising, Germany
+toc: true
+format: gfm
+params:
+  name: "01_benchmark-viral-detection"
+---
+
+Updated: `r format(Sys.time(), '%Y-%m-%d %H:%M:%S', tz = 'CET')` CET.
+
+```{r setup, message=FALSE, include=F}
+here::i_am(paste0(params$name, ".qmd"), uuid = "ecba2cdc-b383-4a47-90a6-afceb1b90916")
+projthis::proj_create_dir_target(params$name, clean = F)
+path_target <- projthis::proj_path_target(params$name)
+path_source <- projthis::proj_path_source(params$name)
+```
+
+## Tasks
+
+```{r import}
+library(vpfpaper)
+library(patchwork)
+
+data("vpf_prab", package = "vpfpaper")
+data("vpf_relab", package = "vpfpaper")
+```
+
+
+```{r PRAB}
+# plot with threshold as x-axis, value as y-axis, facet by metric, and fill by method
+p <- vpf_prab %>%
+  mutate(value = replace_na(value, 0)) %>%
+  ggplot(aes(x = threshold, y = value, color = method)) +
+  geom_point(aes(group = method), size = 0.05, alpha = 0.05) +
+  geom_smooth(aes(color = method), method = "loess") +
+  scale_color_manual(values = c('#4daf4a','#377eb8','#e41a1c')) +
+  facet_grid(metric ~ taxalevel) +
+  labs(x = "Abundance threshold (%)", y = "") +
+  # ggtitle("Precision, recall and F1 score of different methods") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 6),
+        legend.title = element_blank())
+
+ggsave(p, filename = path_target("precision_recall_f1_score_contig.pdf"), width = 10, height = 3.8)
+```
+
+```{r RELAB}
+p2 <- ggplot(vpf_relab, aes(x = taxalevel, y = bcs, fill = method)) +
+  geom_boxplot() +
+  scale_fill_manual(values = alpha(c('#4daf4a','#377eb8','#e41a1c'), 0.6)) +
+  labs(x = "Taxonomy level", y = "Bray-Curtis dissimilarity") +
+  theme_bw() +
+  theme(axis.text.y = element_text(size = 6),
+        axis.text.x = element_text(size = 8),
+        legend.title = element_blank())
+
+ggsave(p2, filename = path_target("BC4abundance_contig.pdf"), width = 10, height = 2.3)
+```
+
+```{r Combine plot}
+p / p2 +
+  plot_layout(heights = c(5, 3)) &
+  plot_annotation(tag_levels = 'A') & 
+  theme(plot.tag = element_text(size = 12))
+
+ggsave(path_target("fig2_benchmark_contig.png"), width = 10, height = 6, dpi = 300)
+```
+
+
+## Files written
+
+These files have been written to the target directory, ```r paste0("data/", params$name)```:
+
+```{r list-files-target}
+projthis::proj_dir_info(path_target())
+```
+

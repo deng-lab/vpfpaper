@@ -5,8 +5,8 @@
 .DS_Store
 workflow/*
 !workflow/*md
+data*/
 pipeline
 *.bib
 *.docx
 *.pdf
-data*

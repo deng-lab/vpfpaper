@@ -5,7 +5,7 @@ output: github_document
 ---
 
 ```{r here-directories, message=FALSE}
-here::i_am("README.Rmd", uuid = "920d0690-03b1-4473-be0c-e3e96adebe08")
+here::i_am("README.Rmd", uuid = "c8c62fd3-6c2c-4fe8-bada-da9a72d5da7c")
 
 # function to get path to previous data: path_source("99-publish", "sample.csv")
 path_source <- projthis::proj_path_source("README")
