@@ -3,8 +3,10 @@
 .Rdata
 .httr-oauth
 .DS_Store
-workflow/data
+workflow/*
+!workflow/*md
 pipeline
 *.bib
 *.docx
 *.pdf
+data*
