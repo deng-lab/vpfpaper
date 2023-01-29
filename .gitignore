@@ -5,8 +5,11 @@
 .DS_Store
 workflow/*
 !workflow/*md
-data*/
+workflow/98*
+data-raw/hpc
 pipeline
 *.bib
 *.docx
 *.pdf
+manuscript
+inst

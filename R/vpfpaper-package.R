@@ -10,6 +10,7 @@
 #' @importFrom dplyr filter
 #' @importFrom dplyr group_by
 #' @importFrom dplyr inner_join
+#' @importFrom dplyr lag
 #' @importFrom dplyr left_join
 #' @importFrom dplyr mutate
 #' @importFrom dplyr mutate_at

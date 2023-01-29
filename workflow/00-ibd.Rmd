@@ -1,16 +1,14 @@
 ---
-title: "00-import"
+title: "00-ibd"
 date: "Compiled at `r format(Sys.time(), '%Y-%m-%d %H:%M:%S', tz = 'UTC')` UTC"
 output: github_document
 params:
-  name: "00-import" # change if you rename file
+  name: "00-ibd"
 ---
 
 ```{r here, message=FALSE}
 here::i_am(paste0(params$name, ".Rmd"), uuid = "a0e8b3cd-3c98-4629-928f-f573d12fd0f4")
 ```
-
-The purpose of this document is ...
 
 ```{r packages}
 library("conflicted")
@@ -24,13 +22,14 @@ library(scater)
 library(patchwork)
 library(tidyverse)
 library(viridis)
-library(hrbrthemes)
-library(circlize)
+# library(hrbrthemes)
+# library(circlize)
 library(networkD3)
 library(pheatmap)
+library(vpfkit)
 
 prj_path <- normalizePath("..")
-dpath <- here(prj_path, "pipeline/report")
+dpath <- here(prj_path, "data-raw/hpc/report")
 
 source(here(prj_path, "R/utils.R"))
 ```
@@ -49,7 +48,7 @@ path_source <- projthis::proj_path_source(params$name)
 ## Tasks
 
 ```{r}
-fp_metadata <- here(prj_path, "data/metadata.xlsx")
+fp_metadata <- here(prj_path, "data-raw/hpc/data/metadata.xlsx")
 fp_vir_taxa <- here(dpath, "taxonomy.tsv")
 # fp_vir_counts <- here(dpath, "abundance_contigs_count.tsv.gz")
 # fp_vir_trmean <- here(dpath, "abundance_contigs_trimmed_mean.tsv.gz")
@@ -69,10 +68,11 @@ fp_vgene_abund <- here(dpath, "abundance_orfs.tsv")
 
 smeta <- openxlsx::read.xlsx(fp_metadata) %>% 
   mutate(sample_id = as.factor(sample_id))
-df_checkv <- read_CheckV(fp_checkv)
-df_virsorter2 <- read_VirSorter2(fp_virsorter2)
-vc2 <- read_vConTACT2(fp_vcontact2)
-df_vcontact2 <- vc2$vc_tbl
+df_checkv <- read_checkv(fp_checkv)
+df_virsorter2 <- read_virsorter2(fp_virsorter2)
+vc2 <- read_vcontact2(fp_vcontact2)
+df_vcontact2 <- vc2$vc_tbl %>% 
+  mutate(Contig = str_replace_all(virsorter2_contig_id, "-cat_[0-9]*", ""))
 anno_vcontact2_cluster <- vc2$vc_annotated
 df_vtaxa <- read_vtaxonomy(fp_vir_taxa)  # will be replaced or removed
 df_vrcyc <- read_lifestyle(fp_lifestyle)
@@ -97,8 +97,8 @@ anno_all <- df_checkv %>%
   left_join(df_vcontact2, by = "Contig") %>% 
   left_join(df_virsorter2, by = "Contig") %>% 
   # left_join(df_lifestyle, by = "virsorter2_contig_id") %>%
-  left_join(df_vtaxa, by = "virsorter2_contig_id") %>%
-  left_join(df_dramstats, by = "virsorter2_contig_id") %>%
+  left_join(df_vtaxa, by = "virsorter2_contig_id") %>% 
+  left_join(df_dramstats, by = "virsorter2_contig_id") %>% 
   mutate(checkv_contig_length = as.integer(checkv_contig_length)) %>% 
   mutate(virsorter2_category = as.integer(virsorter2_category)) %>% 
   arrange(desc(checkv_contig_length)) %>% 

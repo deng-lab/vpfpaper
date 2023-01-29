@@ -26,17 +26,22 @@ path_source <- projthis::proj_path_source(params$name)
 ## Tasks
 
 ```{r import}
-library(vpfpaper)
+library(tidyverse)
 library(patchwork)
+library(vpfpaper)
 
 data("vpf_prab", package = "vpfpaper")
 data("vpf_relab", package = "vpfpaper")
+
+vpf_prab <- vpf_prab %>% 
+  dplyr::mutate(metric = ifelse(metric == "recall", "sensitivity", metric)) %>% 
+  dplyr::mutate(metric = ifelse(metric == "f1_score", "F1 score", metric))
 ```
 
 
 ```{r PRAB}
 # plot with threshold as x-axis, value as y-axis, facet by metric, and fill by method
-p <- vpf_prab %>%
+fig2A <- vpf_prab %>%
   mutate(value = replace_na(value, 0)) %>%
   ggplot(aes(x = threshold, y = value, color = method)) +
   geom_point(aes(group = method), size = 0.05, alpha = 0.05) +
@@ -47,31 +52,35 @@ p <- vpf_prab %>%
   # ggtitle("Precision, recall and F1 score of different methods") +
   theme_bw() +
   theme(axis.text = element_text(size = 6),
+        axis.title = element_text(size = 8),
         legend.title = element_blank())
 
-ggsave(p, filename = path_target("precision_recall_f1_score_contig.pdf"), width = 10, height = 3.8)
+fig2A
+# ggsave(path_target("fig2A_precision_recall_f1_score_contig.pdf"), fig2A, width = 10, height = 3.8)
 ```
 
 ```{r RELAB}
-p2 <- ggplot(vpf_relab, aes(x = taxalevel, y = bcs, fill = method)) +
+fig2B <- ggplot(vpf_relab, aes(x = taxalevel, y = bcs, fill = method)) +
   geom_boxplot() +
   scale_fill_manual(values = alpha(c('#4daf4a','#377eb8','#e41a1c'), 0.6)) +
-  labs(x = "Taxonomy level", y = "Bray-Curtis dissimilarity") +
+  labs(x = "Taxonomy rank", y = "Bray-Curtis dissimilarity") +
   theme_bw() +
   theme(axis.text.y = element_text(size = 6),
         axis.text.x = element_text(size = 8),
+        axis.title = element_text(size = 8),
         legend.title = element_blank())
 
-ggsave(p2, filename = path_target("BC4abundance_contig.pdf"), width = 10, height = 2.3)
+# ggsave(path_target("fig2B_BC4abundance_contig.pdf"), fig2B, width = 10, height = 2.3)
 ```
 
 ```{r Combine plot}
-p / p2 +
+fig2 <- fig2A / fig2B +
   plot_layout(heights = c(5, 3)) &
-  plot_annotation(tag_levels = 'A') & 
+  plot_annotation(tag_levels = 'a') & 
   theme(plot.tag = element_text(size = 12))
 
-ggsave(path_target("fig2_benchmark_contig.png"), width = 10, height = 6, dpi = 300)
+fig2
+ggsave(path_target("fig2_benchmark_contig.png"), fig2, width = 10, height = 6, dpi = 300)
 ```
 
 

@@ -1,5 +1,5 @@
 ---
-title: "01-nextflow_report"
+title: "02-nextflow_report"
 title-block-banner: true
 author:
   - name: Jinlong Ru
@@ -10,9 +10,8 @@ author:
       - neme: Chair of Prevention of Microbial Diseases, School of Life Sciences Weihenstephan, Technical University of Munich, 85354 Freising, Germany
 date: 2023-01-18
 format: gfm
-bibliography: refs.bib
 params:
-  name: "01-nextflow_report"
+  name: "02-nextflow_report"
 ---
 
 Updated: `r format(Sys.time(), '%Y-%m-%d %H:%M:%S', tz = 'CET')` CET.
