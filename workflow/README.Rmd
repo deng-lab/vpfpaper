@@ -11,7 +11,6 @@ here::i_am("README.Rmd", uuid = "c8c62fd3-6c2c-4fe8-bada-da9a72d5da7c")
 path_source <- projthis::proj_path_source("README")
 ```
 
-In this workflow, ...
 
 ```{r packages}
 library("conflicted")
